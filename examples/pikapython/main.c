@@ -51,8 +51,8 @@
 
 /* bsp config for PikaPython */
 #define USING_USB_CDC 1
-#define USING_LVGL 0
-#define USING_FLASH_READ 1
+#define USING_LVGL 1
+#define USING_FLASH_READ 0
 
 #define USING_KEY_ERAISE 0
 #define USING_FORCE_ERASE 0
@@ -78,7 +78,7 @@ volatile FILE g_pika_app_flash_file = {0};
 volatile int g_pika_app_flash_pos = 0;
 static volatile int g_usb_cdc_init = 0;
 #define _PIKA_APP_FLASH_ADDR 0x200000   // 2M
-#define _PIKA_APP_FLASH_SIZE 24 * 1024  
+#define _PIKA_APP_FLASH_SIZE 1024 * 128
 
 #define _PIKA_APP_FLASH_INITED 0xFE
 #define _PIKA_APP_FLASH_VOID 0xFF
@@ -120,7 +120,6 @@ static void _eraise_app(void) {
     pika_platform_printf("Erase app.pika done\r\n");
 }
 
-uint8_t _pika_app_buf[_PIKA_APP_FLASH_SIZE] = {0};
 static void consumer_task(void* pvParameters) {
 #if USING_USB_CDC
     cdc_acm_init();
@@ -146,9 +145,7 @@ static void consumer_task(void* pvParameters) {
     PikaObj* root = newRootObj("root", New_PikaMain);
     if (_pika_app_check()) {
         pika_platform_printf("Load app.pika from flash\r\n");
-        FILE* f = pika_platform_fopen("app.pika", "rb");
-        pika_platform_fread(_pika_app_buf, 1, _PIKA_APP_FLASH_SIZE, f);
-        obj_linkLibrary(root, (uint8_t*)_pika_app_buf);
+        obj_linkLibrary(root, (uint8_t*)FLASH_XIP_BASE + _PIKA_APP_FLASH_ADDR - bflb_flash_get_image_offset());
         obj_runModule(root, "main");
     } else {
         pika_platform_printf("Load app.pika from flash failed\r\n");
@@ -349,10 +346,10 @@ size_t pika_platform_fwrite(const void* ptr,
 size_t pika_platform_fread(void* ptr, size_t size, size_t n, FILE* stream) {
     if (stream == (FILE*)&g_pika_app_flash_file) {
 #if USING_FLASH_READ
-        bflb_flash_read(_PIKA_APP_FLASH_ADDR + g_pika_app_flash_pos,
-                        (uint8_t*)ptr, size * n);
+        bflb_flash_read(_PIKA_APP_FLASH_ADDR + g_pika_app_flash_pos, 
+            (uint8_t*)ptr, size * n);
 #else
-        memcpy(ptr, (const void*)(_PIKA_APP_FLASH_ADDR + g_pika_app_flash_pos),
+        memcpy(ptr, (const void*)(FLASH_XIP_BASE + _PIKA_APP_FLASH_ADDR + g_pika_app_flash_pos - bflb_flash_get_image_offset()),
                size * n);
 #endif
         g_pika_app_flash_pos += size * n;
