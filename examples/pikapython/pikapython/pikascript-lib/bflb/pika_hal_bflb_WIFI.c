@@ -10,10 +10,9 @@
 #include "bflb_uart.h"
 
 #include "bl616_glb.h"
-#include "log.h"
 #include "pika_hal_bflb_common.h"
 
-#define WIFI_STACK_SIZE  (1536)
+#define WIFI_STACK_SIZE  (1024 * 2)
 #define TASK_PRIORITY_FW (16)
 
 static TaskHandle_t wifi_fw_task;
@@ -21,6 +20,10 @@ static TaskHandle_t wifi_fw_task;
 static wifi_conf_t conf = {
     .country_code = "CN",
 };
+
+static volatile int g_wifi_active = 0;
+
+#define LOG_I printf
 
 void wifi_event_handler(uint32_t code)
 {
@@ -87,18 +90,21 @@ int wifi_start_firmware_task(void)
 
     /* Enable wifi irq */
 
+    printf("Enable wifi irq\r\n");
     extern void interrupt0_handler(void);
     bflb_irq_attach(WIFI_IRQn, (irq_callback)interrupt0_handler, NULL);
     bflb_irq_enable(WIFI_IRQn);
 
+    printf("wifi_main task creating\r\n");
     xTaskCreate(wifi_main, (char *)"fw", WIFI_STACK_SIZE, NULL, TASK_PRIORITY_FW, &wifi_fw_task);
 
+    printf("wifi_main task created\r\n");
     return 0;
 }
 
 int pika_hal_platform_WIFI_open(pika_dev* dev, char* name) {
     // Initialize Wi-Fi device
-    // return wifi_mgmr_wifi_pwr_on();
+    return 0;
 }
 
 int pika_hal_platform_WIFI_close(pika_dev* dev) {
@@ -107,17 +113,19 @@ int pika_hal_platform_WIFI_close(pika_dev* dev) {
 }
 
 int pika_hal_platform_WIFI_ioctl_config(pika_dev* dev, pika_hal_WIFI_config* cfg) {
-    // Configure Wi-Fi device
+    return 0;
 }
 
 int pika_hal_platform_WIFI_ioctl_enable(pika_dev* dev) {
     // Enable Wi-Fi device
+    g_wifi_active = 1;
+    tcpip_init(NULL, NULL);
     return wifi_start_firmware_task();
 }
 
 int pika_hal_platform_WIFI_ioctl_disable(pika_dev* dev) {
     // Disable Wi-Fi device
-    return wifi_mgmr_wifi_pwr_off();
+    // return wifi_mgmr_wifi_pwr_off();
 }
 
 int pika_hal_platform_WIFI_ioctl_others(pika_dev* dev, PIKA_HAL_IOCTL_CMD cmd, void* arg) {
@@ -128,7 +136,8 @@ int pika_hal_platform_WIFI_ioctl_others(pika_dev* dev, PIKA_HAL_IOCTL_CMD cmd, v
             break;
         case PIKA_HAL_IOCTL_WIFI_GET_ACTIVE:
             // Call the appropriate function to get Wi-Fi active state
-            break;
+            *(int*)arg = g_wifi_active;
+            return 0;
         case PIKA_HAL_IOCTL_WIFI_SCAN:
             // Call the appropriate function to perform Wi-Fi scan
             break;
@@ -138,10 +147,9 @@ int pika_hal_platform_WIFI_ioctl_others(pika_dev* dev, PIKA_HAL_IOCTL_CMD cmd, v
             pika_hal_WIFI_connect_config* conncfg =
                 (pika_hal_WIFI_connect_config*)arg;
             // ESP_ERROR_CHECK(esp_wifi_get_config(WIFI_IF_STA, &esp_wifi_cfg));
-            strcpy((char*)esp_wifi_cfg.sta.ssid, conncfg->ssid);
-            strcpy((char*)esp_wifi_cfg.sta.password, conncfg->password);
+            // strcpy((char*)esp_wifi_cfg.sta.ssid, conncfg->ssid);
+            // strcpy((char*)esp_wifi_cfg.sta.password, conncfg->password);
             return 0;
-            break;
         case PIKA_HAL_IOCTL_WIFI_GET_IFCONFIG:
             // Call the appropriate function to get Wi-Fi interface configuration
             break;

@@ -51,7 +51,7 @@
 
 /* bsp config for PikaPython */
 #define USING_USB_CDC 1
-#define USING_LVGL 1
+#define USING_LVGL 0
 #define USING_FLASH_READ 1
 
 #define USING_KEY_ERAISE 0
@@ -77,8 +77,8 @@ struct bflb_device_s* uartx = NULL;
 volatile FILE g_pika_app_flash_file = {0};
 volatile int g_pika_app_flash_pos = 0;
 static volatile int g_usb_cdc_init = 0;
-#define _PIKA_APP_FLASH_ADDR 0x100000   // 1M
-#define _PIKA_APP_FLASH_SIZE 24 * 1024  // 24K
+#define _PIKA_APP_FLASH_ADDR 0x200000   // 2M
+#define _PIKA_APP_FLASH_SIZE 24 * 1024  
 
 #define _PIKA_APP_FLASH_INITED 0xFE
 #define _PIKA_APP_FLASH_VOID 0xFF
