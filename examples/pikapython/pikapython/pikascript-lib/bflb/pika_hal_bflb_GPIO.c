@@ -1,6 +1,5 @@
-#include "../pikascript-lib/PikaStdDevice/pika_hal.h"
 #include "bflb_gpio.h"
-#include "pika_hal_BLMCU_common.h"
+#include "pika_hal_bflb_common.h"
 
 
 int pika_hal_platform_GPIO_open(pika_dev* dev, char* name) {

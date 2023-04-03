@@ -1,5 +1,5 @@
-#include "../PikaStdDevice/pika_hal.h"
 #include "bflb_adc.h"
+#include "pika_hal_bflb_common.h"
 
 static int8_t _pin2ch(uint32_t pin) {
     switch (pin) {

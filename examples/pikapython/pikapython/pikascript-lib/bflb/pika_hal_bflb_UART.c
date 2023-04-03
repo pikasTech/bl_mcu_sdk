@@ -1,7 +1,6 @@
-#include "../pikascript-lib/PikaStdDevice/pika_hal.h"
 #include "bflb_uart.h"
 #include "bflb_gpio.h"
-#include "pika_hal_BLMCU_common.h"
+#include "pika_hal_bflb_common.h"
 
 typedef struct platform_uart_t {
     struct bflb_device_s* device;
@@ -11,9 +10,11 @@ typedef struct platform_uart_t {
 
 int pika_hal_platform_UART_open(pika_dev* dev, char* name) {
     if (name[0] == 'U' && name[1] == 'A' && name[2] == 'R' && name[3] == 'T') {
-        int UART_num = fast_atoi(name + 4);
+        int UART_num = atoi(name + 4);
         platform_uart_t* uart = pikaMalloc(sizeof(platform_uart_t));
-        uart->device = bflb_device_get_by_id(BFLB_DEVICE_TYPE_UART, UART_num);
+        char uart_name[6] = {0};
+        snprintf(uart_name, sizeof(uart_name), "uart%d", UART_num);
+        uart->device = bflb_device_get_by_name(uart_name);
         uart->uart_id = UART_num;
         dev->platform_data = uart;
         return 0;
@@ -28,10 +29,15 @@ int pika_hal_platform_UART_close(pika_dev* dev) {
 
 static void _uart_irq_handler(int irq, void* arg) {
     pika_dev* dev = (pika_dev*)arg;
+    pika_debug("uart_irq_handler:%p", dev);
     platform_uart_t* uart = (platform_uart_t*)dev->platform_data;
     pika_hal_UART_config* cfg = (pika_hal_UART_config*)dev->ioctl_config;
     uint32_t intstatus = bflb_uart_get_intstatus(uart->device);
     if (intstatus) {
+        pika_debug("uart%d intstatus:0x%02x", uart->uart_id, intstatus);
+        pika_debug("event_callback:%p", cfg->event_callback);
+        pika_debug("event_callback_filter:%d",
+                   cfg->event_callback_filter);
         cfg->event_callback(dev, cfg->event_callback_filter);
         bflb_uart_int_clear(uart->device, intstatus);
     }
@@ -114,9 +120,11 @@ int pika_hal_platform_UART_ioctl_config(pika_dev* dev,
             /* Configure UART to interrupt mode */
             case PIKA_HAL_UART_EVENT_SIGNAL_RX:
                 bflb_uart_rxint_mask(uart->device, false);
+                bflb_uart_txint_mask(uart->device, true);
                 break;
             case PIKA_HAL_UART_EVENT_SIGNAL_TX:
                 bflb_uart_txint_mask(uart->device, false);
+                bflb_uart_rxint_mask(uart->device, true);
                 break;
             default:
                 __platform_printf(
@@ -124,6 +132,8 @@ int pika_hal_platform_UART_ioctl_config(pika_dev* dev,
                     cfg->event_callback_filter);
                 return -1;
         }
+        pika_debug("irq_attach: %d, %p, %p", uart->device->irq_num,
+                   _uart_irq_handler, dev);
         bflb_irq_attach(uart->device->irq_num, _uart_irq_handler, dev);
         bflb_irq_enable(uart->device->irq_num);
     }
@@ -187,8 +197,9 @@ int pika_hal_platform_UART_write(pika_dev* dev, void* buf, size_t count) {
 
 int pika_hal_platform_UART_read(pika_dev* dev, void* buf, size_t count) {
     platform_uart_t* uart = (platform_uart_t*)dev->platform_data;
+    int ret = bflb_uart_get(uart->device, buf, count);
     pika_debug("uart->device->uart_id=%d",uart->uart_id);
     pika_debug("uart->read:%s", buf);
     pika_debug("uart->count=%d",count);
-    return bflb_uart_get(uart->device, buf, count);
+    return ret;
 }

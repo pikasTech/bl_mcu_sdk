@@ -9,9 +9,10 @@ import re
 import binascii
 import modbus
 import time
-import pika_lvgl
+import lvgl
 import _thread
 import machine
 import example
 import json
+import bflb
 print('hello PikaPython!')
